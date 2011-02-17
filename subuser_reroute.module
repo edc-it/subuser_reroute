@@ -52,10 +52,11 @@ function subuser_reroute_mail_alter(&$message) {
   // Change the $to address to be the one we defined
   //  $message['to'] = variable_get(REROUTE_EMAIL_ADDRESS, ini_get('sendmail_from'));
   $message['to'] = _get_reroute_email($to);
+  dpm($message);
 }
 
 /**
- * helper function for retrieving alternate email
+ * helper function for retrieving alternate email for subuser (should probably be in subuser module)
  */
 
 function _get_reroute_email($to) {
@@ -78,6 +79,6 @@ function _get_reroute_email($to) {
           '#weight' => 10,
         );
       }
-    return $parent;
+    return $parent->mail;
   }
 }
