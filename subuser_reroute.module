@@ -1,0 +1,83 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * 
+ */
+
+/**
+ * implementation of hook_menu
+ */ 
+function subuser_reroute_menu() {
+  $items = array();
+  $items['admin/subuser_reroute'] = array(
+    'title' => 'Reroute testing',
+    'description' => 'Testing out the subuser_reroute.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('subuser_reroute_form'),
+    'access arguments' => array('administer subuser settings'),
+    'file' => 'subuser_reroute.test.inc'
+  );
+  return $items; 
+}
+
+function subuser_reroute_mail_alter(&$message) {
+  global $base_url;
+
+  if (!empty($message) && is_array($message)) {
+    $mailkey = isset($message['id']) ? $message['id'] : t('<mail id> is missing');
+    $to = isset($message['to']) ? $message['to'] : t('<to> is missing');
+  // Suppress Bcc and Cc fields otherwise email will still go out to those addresses
+    if (isset($message['headers']) && is_array($message['headers'])) {
+      if (isset($message['headers']['Bcc'])) {
+        unset($message['headers']['Bcc']);
+      }
+      if (isset($message['headers']['Cc'])) {
+        unset($message['headers']['Cc']);
+      }
+    }
+  }
+  
+  // Format a message to show at the top
+  $msg[] = t("This email was rerouted.");
+  $msg[] = t("Web site: @site", array('@site' => $base_url));
+  $msg[] = t("Mail key: @key", array('@key' => $mailkey));
+  $msg[] = t("Originally to: <@to>", array('@to' => $to));
+  $msg[] = "-----------------------";
+
+  // Prepend to the body of the email
+  $message['body'] = array_merge($msg, isset($message['body']) ? (is_array($message['body']) ? $message['body'] : array($message['body'])) : array());
+
+  // Change the $to address to be the one we defined
+  //  $message['to'] = variable_get(REROUTE_EMAIL_ADDRESS, ini_get('sendmail_from'));
+  $message['to'] = _get_reroute_email($to);
+}
+
+/**
+ * helper function for retrieving alternate email
+ */
+
+function _get_reroute_email($to) {
+  //get the user object of the $to
+  if (! $unprivuser = user_load(array('mail' => $to))) {
+    drupal_set_message(t('User was not found with email %email',array('%email' => $to)),'warning');
+    return FALSE;
+  }
+  else {
+      $parent = db_fetch_object(db_query('SELECT parent_id
+                                          FROM {user_relationship}
+                                          WHERE uid = %d', $unprivuser->uid));
+      if ($parent) {
+        // Display link to parent user if available.
+        $parent = user_load($parent->parent_id);
+        $account->content['subuser_parent'] = array(
+          '#type' => 'user_profile_item',
+          '#title' => t(SUBUSER_PARENT),
+          '#value' => theme('username', $parent),
+          '#weight' => 10,
+        );
+      }
+    return $parent;
+  }
+}

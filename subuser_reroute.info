@@ -1,0 +1,7 @@
+; $Id$
+name = "Subuser Reroute module"
+description = "Allows subusers to not require emails. All email flows through 'parent'"
+core = 6.x
+package = Other
+dependencies[] = views
+dependencies[] = subuser
