@@ -82,3 +82,39 @@ function _get_reroute_email($to) {
     return $parent->mail;
   }
 }
+
+/**
+ * Implementation of hook_form_alter()
+ *
+ * This function will alter the user registration form for creating students.
+ */
+
+function subuser_reroute_form_alter(&$form, $form_state, $form_id) {
+//  dpm($form_id);
+
+  switch ($form_id) {
+    case 'subuser_create_form':
+    case 'user_profile_form':
+      $form['account']['mail']['#required'] = false;
+      $form['#validate'][0] = 'subuser_reroute_user_register_validate';
+      $form['account']['mail']['#type'] = 'hidden';
+      break;
+    default:
+      break;
+  }
+}
+
+function subuser_reroute_user_register_validate($form, &$form_state) {
+
+  // if no email value, then stuff a temp one to fool the validation
+  if ($form_state['values']['mail'] == null)
+  // a unique non-existent email
+  $form_state['values']['mail'] = 'nobody@nowhere.com';
+  // call original system validation
+  user_register_validate($form, $form_state);
+
+  // stuff empty back again
+  if ($form_state['values']['mail'] == 'nobody@nowhere.com')
+  $form_state['values']['mail'] = '';
+  return;
+}
