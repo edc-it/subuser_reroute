@@ -28,31 +28,33 @@ function subuser_reroute_mail_alter(&$message) {
   if (!empty($message) && is_array($message)) {
     $mailkey = isset($message['id']) ? $message['id'] : t('<mail id> is missing');
     $to = isset($message['to']) ? $message['to'] : t('<to> is missing');
-  // Suppress Bcc and Cc fields otherwise email will still go out to those addresses
-    if (isset($message['headers']) && is_array($message['headers'])) {
-      if (isset($message['headers']['Bcc'])) {
-        unset($message['headers']['Bcc']);
+    $new_to = _get_reroute_email($to);
+    if ($new_to != $to) {
+      // Suppress Bcc and Cc fields otherwise email will still go out to those addresses
+      if (isset($message['headers']) && is_array($message['headers'])) {
+        if (isset($message['headers']['Bcc'])) {
+          unset($message['headers']['Bcc']);
+        }
+        if (isset($message['headers']['Cc'])) {
+          unset($message['headers']['Cc']);
+        }
       }
-      if (isset($message['headers']['Cc'])) {
-        unset($message['headers']['Cc']);
-      }
+
+      // Format a message to show at the top
+      $msg[] = t("This email was rerouted.");
+      $msg[] = t("Web site: @site", array('@site' => $base_url));
+      $msg[] = t("Mail key: @key", array('@key' => $mailkey));
+      $msg[] = t("Originally to: <@to>", array('@to' => $to));
+      $msg[] = "-----------------------";
+
+      // Prepend to the body of the email
+      $message['body'] = array_merge($msg, isset($message['body']) ? (is_array($message['body']) ? $message['body'] : array($message['body'])) : array());
+
+      // Change the $to address to be the one we defined
+      //  $message['to'] = variable_get(REROUTE_EMAIL_ADDRESS, ini_get('sendmail_from'));
+      $message['to'] = $new_to;
     }
   }
-  
-  // Format a message to show at the top
-  $msg[] = t("This email was rerouted.");
-  $msg[] = t("Web site: @site", array('@site' => $base_url));
-  $msg[] = t("Mail key: @key", array('@key' => $mailkey));
-  $msg[] = t("Originally to: <@to>", array('@to' => $to));
-  $msg[] = "-----------------------";
-
-  // Prepend to the body of the email
-  $message['body'] = array_merge($msg, isset($message['body']) ? (is_array($message['body']) ? $message['body'] : array($message['body'])) : array());
-
-  // Change the $to address to be the one we defined
-  //  $message['to'] = variable_get(REROUTE_EMAIL_ADDRESS, ini_get('sendmail_from'));
-  $message['to'] = _get_reroute_email($to);
-  dpm($message);
 }
 
 /**
@@ -78,8 +80,11 @@ function _get_reroute_email($to) {
           '#value' => theme('username', $parent),
           '#weight' => 10,
         );
+        return $parent->mail;
       }
-    return $parent->mail;
+      else {
+        return $to;
+      }
   }
 }
 
@@ -95,9 +100,11 @@ function subuser_reroute_form_alter(&$form, $form_state, $form_id) {
   switch ($form_id) {
     case 'subuser_create_form':
     case 'user_profile_form':
+      dpm($form);
       $form['account']['mail']['#required'] = false;
       $form['#validate'][0] = 'subuser_reroute_user_register_validate';
       $form['account']['mail']['#type'] = 'hidden';
+      unset($form['account']['notify']);
       break;
     default:
       break;
