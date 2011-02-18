@@ -44,7 +44,6 @@ function subuser_reroute_mail_alter(&$message) {
       $msg[] = t("This email was rerouted.");
       $msg[] = t("Web site: @site", array('@site' => $base_url));
       $msg[] = t("Mail key: @key", array('@key' => $mailkey));
-      $msg[] = t("Originally to: <@to>", array('@to' => $to));
       $msg[] = "-----------------------";
 
       // Prepend to the body of the email
@@ -74,12 +73,6 @@ function _get_reroute_email($to) {
       if ($parent) {
         // Display link to parent user if available.
         $parent = user_load($parent->parent_id);
-        $account->content['subuser_parent'] = array(
-          '#type' => 'user_profile_item',
-          '#title' => t(SUBUSER_PARENT),
-          '#value' => theme('username', $parent),
-          '#weight' => 10,
-        );
         return $parent->mail;
       }
       else {
@@ -95,17 +88,18 @@ function _get_reroute_email($to) {
  */
 
 function subuser_reroute_form_alter(&$form, $form_state, $form_id) {
-//  dpm($form_id);
 
   switch ($form_id) {
     case 'subuser_create_form':
-    case 'user_profile_form':
-      dpm($form);
       $form['account']['mail']['#required'] = false;
       $form['#validate'][0] = 'subuser_reroute_user_register_validate';
       $form['account']['mail']['#type'] = 'hidden';
       unset($form['account']['notify']);
       break;
+    case 'user_profile_form':
+     // has to be separate to not user register_validate
+      $form['account']['mail']['#required'] = false;
+      $form['account']['mail']['#type'] = 'hidden';
     default:
       break;
   }
@@ -124,4 +118,18 @@ function subuser_reroute_user_register_validate($form, &$form_state) {
   if ($form_state['values']['mail'] == 'nobody@nowhere.com')
   $form_state['values']['mail'] = '';
   return;
+}
+
+/**
+ * Implementation of hook_user
+ */
+
+function subuser_reroute_user($op, &$edit, &$account, $category = NULL) {
+
+  switch($op) {
+    case 'insert':
+      $sql = "update users set mail = '%s' where uid=%d";
+      db_query($sql,array($account->name . '+' . $account->uid . '@example.com' , $account->uid));
+      break;
+  }
 }
